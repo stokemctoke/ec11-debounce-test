@@ -14,6 +14,12 @@ Polled, software-debounced EC11 rotary encoder driver for the **Tenstar Robot ES
 | External WS2812 V+ | `5V` |
 | External WS2812 GND | `GND` |
 | Onboard blue LED | `GPIO8` (active LOW, used by the sketch) |
+| OLED SDA (optional) | `GPIO5` |
+| OLED SCL (optional) | `GPIO6` |
+| OLED VCC (optional) | `3.3V` |
+| OLED GND (optional) | `GND` |
+
+The OLED is an **SSD1306 128×64** over I2C. It's auto-detected at boot — the sketch runs fine without one and prints the same event stream to Serial regardless.
 
 A 20-detent EC11 is assumed. One detent = one step.
 
@@ -22,6 +28,8 @@ A 20-detent EC11 is assumed. One detent = one step.
 - Right turn → external LED flashes **red**, onboard blinks
 - Left turn → external LED flashes **blue**, onboard blinks
 - Click → external LED flashes **green**, onboard blinks
+
+If an OLED is attached, the display shows the current step count, last action, and CW / CCW / click totals.
 
 Serial monitor (115200 baud) prints one line per event:
 
@@ -53,4 +61,7 @@ Open `ec11_debounce_test/ec11_debounce_test.ino` in the Arduino IDE.
 | Flash Size | `4MB (32Mb)` |
 | Upload Speed | `921600` |
 
-**Library:** install `FastLED` via Sketch → Include Library → Manage Libraries.
+**Libraries** (Sketch → Include Library → Manage Libraries):
+
+- `FastLED`
+- `U8g2` (only needed if you want the optional OLED display)
