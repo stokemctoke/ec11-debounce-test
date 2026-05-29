@@ -45,6 +45,12 @@ void serialOut_click() {
   Serial.println();
 }
 
+void serialOut_missed() {
+  Serial.print("!!! MISSED STEP - total ");
+  printZeroPad(missedCount);
+  Serial.println(" !!!");
+}
+
 void serialOut_reset() {
   Serial.println(">>> counters reset <<<");
 }

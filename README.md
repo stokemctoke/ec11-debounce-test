@@ -2,7 +2,7 @@
 
 A focused learning sketch for the **EC11 rotary encoder** on a **Tenstar Robot ESP32-C3 Super-Mini**. It decodes the encoder in software using a robust **polled + confirmed Buxtronix** debounce, and gives you immediate feedback through an external WS2812 LED, the onboard blue LED, and an optional SSD1306 OLED.
 
-The goal is to get familiar with the EC11, how quadrature works, and how a software debounce turns a noisy mechanical encoder into clean, one-step-per-detent counts.
+The goal is to get familiar with the EC11, how quadrature works, and how a software debounce turns a noisy mechanical encoder into clean, one-step-per-detent counts. Sampling runs in a hardware-timer interrupt, so the decoder keeps perfect count even while the loop is busy redrawing the OLED — and a built-in missed-step detector tells you honestly if it ever can't keep up.
 
 ## Hardware
 
@@ -34,7 +34,7 @@ A 20-detent EC11 is assumed. One detent = one step.
 
 The cycle counter wraps every 20 rotations; clicks do not advance the cycle counter but increment their own total.
 
-If an OLED is attached, the header shows the active debounce method, with the current cycle position, last action, and totals below.
+If an OLED is attached, the header shows the active debounce method, with the current cycle position, last action, and a `S:`/`C:`/`M:` line below (steps / clicks / missed). The **missed** count flags suspected skipped detents — see below — and stays at 0 in normal use.
 
 Serial monitor (115200 baud) prints one line per event:
 
@@ -43,6 +43,7 @@ Serial monitor (115200 baud) prints one line per event:
 --> RIGHT - STEP 02
 <-- LEFT  - STEP 03
 (*) CLICK - CLK 01
+!!! MISSED STEP - total 01 !!!
 >>> counters reset <<<
 ```
 
@@ -54,21 +55,25 @@ Everything lives in `ec11_debounce_test/`. Each file has one job:
 |---|---|
 | `ec11_debounce_test.ino` | `setup()` + `loop()` — orchestration, rotation drain, and the short/long-press button handler |
 | `Config.h` | All pin assignments and timing constants |
-| `State.{h,cpp}` | Shared counters and `lastAction`; `recordRotation()` / `recordClick()` / `resetCounts()` |
+| `State.{h,cpp}` | Shared counters and `lastAction`; `recordRotation()` / `recordClick()` / `recordMissed()` / `resetCounts()` |
 | `LedFx.{h,cpp}` | FastLED external strip + onboard LED flash management |
 | `Display.{h,cpp}` | SSD1306 detection, I2C scan, splash, redraw |
 | `SerialOut.{h,cpp}` | Formatted banner and event lines |
-| `Encoder.{h,cpp}` | The polled + confirmed Buxtronix decoder (`encoder_init`/`poll`/`getPos`) |
+| `Encoder.{h,cpp}` | The polled + confirmed Buxtronix decoder, sampled in a timer ISR (`encoder_init`/`reset`/`getPos`/`getMissed`) |
 
 ## How the debounce works
 
-1. **Sample** CLK and DT every 200 µs (5 kHz).
+1. **Sample** CLK and DT every 200 µs (5 kHz) — from a **hardware-timer ISR**, not the main loop. This is the key to accuracy: the OLED redraw blocks the loop for ~20 ms each time, but the ISR keeps sampling right through it, so no transitions are lost while the screen updates.
 2. **Confirm** — a new pin reading must hold steady across 2 consecutive samples before it's accepted. This rejects any bounce shorter than ~400 µs.
 3. **Decode** — confirmed transitions drive a full-step Buxtronix state machine that only emits a step on a complete CW/CCW quadrature cycle. Bounce that doesn't complete a cycle harmlessly returns to the start state.
 
 The result is robust against contact bounce at the cost of ~one sample of latency. Tune `SAMPLE_US` and `CONFIRM_COUNT` in `Config.h` to experiment.
 
-The push switch is debounced separately with a 30 ms time-window filter; holding it past `LONG_PRESS_MS` (1000 ms) triggers the counter reset.
+### Missed-step detection
+
+Valid quadrature changes exactly one of CLK/DT at a time. If the decoder ever sees **both** bits flip between two confirmed samples, an intermediate phase was too brief to catch — so it counts a missed step (`M:` on the OLED, `!!! MISSED STEP !!!` on Serial). In normal use this stays at 0; it only ticks up if you spin the encoder faster than the 5 kHz sampler can follow. It's a sensitive "is it keeping up?" gauge rather than an exact lost-count.
+
+The push switch is debounced separately with a 30 ms time-window filter; holding it past `LONG_PRESS_MS` (1000 ms) resets every counter (including missed).
 
 > **Note:** the ESP32-C3 has no hardware Pulse Counter (PCNT) peripheral, so the
 > "let the silicon decode quadrature for free" approach isn't possible on this

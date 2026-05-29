@@ -104,11 +104,12 @@ void display_update() {
   int aw = oled.getStrWidth(a);
   oled.drawStr((128 - aw) / 2, 46, a);
 
-  // Bottom stats: total rotations and total clicks
+  // Bottom stats: total rotations, clicks, and suspected missed steps
   oled.setFont(u8g2_font_5x8_tr);
-  snprintf(buf, sizeof(buf), "STEPS:%lu  CLICKS:%lu",
+  snprintf(buf, sizeof(buf), "S:%lu  C:%lu  M:%lu",
            (unsigned long)(cwCount + ccwCount),
-           (unsigned long)clickCount);
+           (unsigned long)clickCount,
+           (unsigned long)missedCount);
   int sw = oled.getStrWidth(buf);
   oled.drawStr((128 - sw) / 2, 62, buf);
 
