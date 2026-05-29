@@ -23,7 +23,7 @@ The goal is to get familiar with the EC11, how quadrature works, and how a softw
 
 The OLED is an **SSD1306 128×64** over I2C. It's auto-detected at boot (the I2C bus is scanned and the panel is driven at whichever of `0x3C`/`0x3D` responds). The sketch runs fine without one and prints the same event stream to Serial regardless.
 
-A 20-detent EC11 is assumed. One detent = one step.
+A 20-detent EC11 is assumed by default. One detent = one step. If your encoder has a different detent count (15, 24, 30… are all common), change `STEPS_PER_REV` in `Config.h` — that only sets where the `NN / xx` cycle counter wraps; the decoder counts detents regardless.
 
 ## Behaviour
 
@@ -32,7 +32,7 @@ A 20-detent EC11 is assumed. One detent = one step.
 - Short click → external LED flashes **green**, onboard blinks
 - **Hold the encoder switch for 1 second → all counters reset**, LED flashes **white**
 
-The cycle counter wraps every 20 rotations; clicks do not advance the cycle counter but increment their own total.
+The cycle counter wraps every `STEPS_PER_REV` rotations (20 by default); clicks do not advance the cycle counter but increment their own total.
 
 If an OLED is attached, the header shows the active debounce method, with the current cycle position, last action, and a `S:`/`C:`/`M:` line below (steps / clicks / missed). The **missed** count flags suspected skipped detents — see below — and stays at 0 in normal use.
 
@@ -100,3 +100,14 @@ Open `ec11_debounce_test/ec11_debounce_test.ino` in the Arduino IDE. The other f
 - `U8g2` (only needed if you want the optional OLED display)
 
 Requires **Arduino-ESP32 core 3.0+**.
+
+## Reusing the debounce in your own project
+
+`EC11_Debounce_Minimal.ino` in the repo root is a stripped-down, **library-free** copy of just the decoder — the timer-ISR sampler, confirm filter, and Buxtronix state machine — with no LEDs, OLED, or counters. Drop the file into your project and use:
+
+```cpp
+encoderBegin();            // once, in setup()
+int32_t pos = encoderPosition();   // signed detent count, anytime
+```
+
+The pins and tuning live in `#define`s at the top, and the example `setup()`/`loop()` (which just prints `CW`/`CCW`/`CLICK`) is marked for deletion on integration. It targets Arduino-ESP32 core 3.x and includes the core 2.x timer API as a commented alternative. Because sampling runs in the ISR, the count stays accurate even when your loop is blocked on slow work like a display redraw or WiFi I/O.

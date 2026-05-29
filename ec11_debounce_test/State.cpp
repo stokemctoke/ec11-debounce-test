@@ -1,4 +1,5 @@
 #include "State.h"
+#include "Config.h"
 
 uint8_t    cycleStep    = 0;
 uint32_t   cwCount      = 0;
@@ -9,7 +10,7 @@ LastAction lastAction   = ACT_NONE;
 bool       displayDirty = false;
 
 void recordRotation(bool cw) {
-  cycleStep = (cycleStep % 20) + 1;   // 1..20, wraps
+  cycleStep = (cycleStep % STEPS_PER_REV) + 1;   // 1..STEPS_PER_REV, wraps
   if (cw) {
     cwCount++;
     lastAction = ACT_RIGHT;

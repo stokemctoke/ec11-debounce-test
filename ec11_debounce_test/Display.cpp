@@ -85,10 +85,10 @@ void display_update() {
   oled.drawStr(2, 8, ENCODER_NAME);
   oled.drawHLine(2, 10, 124);
 
-  // Cycle counter "NN / 20", centered
+  // Cycle counter "NN / STEPS_PER_REV", centered
   oled.setFont(u8g2_font_helvB14_tr);
   char buf[32];
-  snprintf(buf, sizeof(buf), "%u / 20", cycleStep);
+  snprintf(buf, sizeof(buf), "%u / %u", cycleStep, STEPS_PER_REV);
   int w = oled.getStrWidth(buf);
   oled.drawStr((128 - w) / 2, 30, buf);
 

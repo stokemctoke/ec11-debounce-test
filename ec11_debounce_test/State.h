@@ -5,7 +5,7 @@
 
 enum LastAction { ACT_NONE, ACT_RIGHT, ACT_LEFT, ACT_CLICK };
 
-extern uint8_t    cycleStep;    // 1..20, rotations only — wraps after 20
+extern uint8_t    cycleStep;    // 1..STEPS_PER_REV, rotations only — wraps
 extern uint32_t   cwCount;      // total CW rotations
 extern uint32_t   ccwCount;     // total CCW rotations
 extern uint32_t   clickCount;   // total clicks

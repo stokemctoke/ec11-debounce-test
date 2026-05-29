@@ -19,6 +19,7 @@
 #define SW_PIN         3
 #define SW_DEBOUNCE_MS 30
 #define LONG_PRESS_MS  1000   // hold the switch this long to reset all counters
+#define STEPS_PER_REV  20     // detents per revolution — sets the NN/xx cycle wrap
 
 // ── Encoder sampling (polled methods only) ────────────────────────────────────
 #define SAMPLE_US     200    // 5 kHz sample rate
