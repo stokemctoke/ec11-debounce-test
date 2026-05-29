@@ -44,3 +44,7 @@ void serialOut_click() {
   printZeroPad(clickCount);
   Serial.println();
 }
+
+void serialOut_reset() {
+  Serial.println(">>> counters reset <<<");
+}

@@ -1,37 +1,18 @@
-// Encoder decoder registry — pluggable methods behind a common interface.
+// Software-debounced EC11 decoder — the one method this sketch teaches.
 //
-// Each EncoderXxx.cpp file implements one decoding strategy and exposes the
-// four functions below. Encoder.cpp gathers them into ENC_METHODS[] so the
-// main sketch (and the future mode-cycler) can call them generically.
+// Strategy (see Encoder.cpp for the full explanation):
+//   poll CLK/DT every SAMPLE_US, require CONFIRM_COUNT identical samples
+//   before accepting a transition, then feed it to a full-step Buxtronix
+//   quadrature state machine that only emits on a complete detent.
 //
-// Contract for each method:
-//   init()    — claim pins/peripherals, zero internal counters
-//   deinit()  — release pins/peripherals (so another method can take over)
-//   getPos()  — return signed detent count since init (1 unit = 1 detent)
-//   poll()    — called every loop iteration; some methods are no-ops here
+//   encoder_init()   — claim pins, zero the counter
+//   encoder_poll()   — call every loop iteration
+//   encoder_getPos() — signed detent count since init (1 unit = 1 detent)
 #pragma once
 #include <Arduino.h>
 
-struct EncoderMethod {
-  const char* name;
-  void    (*init)();
-  void    (*deinit)();
-  int32_t (*getPos)();
-  void    (*poll)();
-};
+extern const char* ENCODER_NAME;
 
-// Prototypes for each implementation. Defined in EncoderPolledBux.cpp etc.
-void    polledBux_init();   void polledBux_deinit();
-int32_t polledBux_getPos(); void polledBux_poll();
-
-void    rawBux_init();      void rawBux_deinit();
-int32_t rawBux_getPos();    void rawBux_poll();
-
-void    qem_init();         void qem_deinit();
-int32_t qem_getPos();       void qem_poll();
-
-extern EncoderMethod ENC_METHODS[];
-extern const uint8_t ENC_METHOD_COUNT;
-extern uint8_t       activeEncoderIdx;
-
-inline EncoderMethod& activeEnc() { return ENC_METHODS[activeEncoderIdx]; }
+void    encoder_init();
+void    encoder_poll();
+int32_t encoder_getPos();

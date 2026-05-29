@@ -1,8 +1,8 @@
 # EC11 Debounce Test
 
-Side-by-side demo of **three different EC11 rotary encoder debounce strategies** on a **Tenstar Robot ESP32-C3 Super-Mini**, with shared visual feedback via an external WS2812 LED, the onboard blue LED, and an optional SSD1306 OLED.
+A focused learning sketch for the **EC11 rotary encoder** on a **Tenstar Robot ESP32-C3 Super-Mini**. It decodes the encoder in software using a robust **polled + confirmed Buxtronix** debounce, and gives you immediate feedback through an external WS2812 LED, the onboard blue LED, and an optional SSD1306 OLED.
 
-The default method is a polled + confirmed Buxtronix decoder — the rest are present as separate, self-contained files so you can read each approach in isolation and (once the mode-cycler lands) swap between them with a long press of the encoder.
+The goal is to get familiar with the EC11, how quadrature works, and how a software debounce turns a noisy mechanical encoder into clean, one-step-per-detent counts.
 
 ## Hardware
 
@@ -21,7 +21,7 @@ The default method is a polled + confirmed Buxtronix decoder — the rest are pr
 | OLED VCC (optional) | `3.3V` |
 | OLED GND (optional) | `GND` |
 
-The OLED is an **SSD1306 128×64** over I2C. It's auto-detected at boot — the sketch runs fine without one and prints the same event stream to Serial regardless.
+The OLED is an **SSD1306 128×64** over I2C. It's auto-detected at boot (the I2C bus is scanned and the panel is driven at whichever of `0x3C`/`0x3D` responds). The sketch runs fine without one and prints the same event stream to Serial regardless.
 
 A 20-detent EC11 is assumed. One detent = one step.
 
@@ -29,11 +29,12 @@ A 20-detent EC11 is assumed. One detent = one step.
 
 - Right turn → external LED flashes **red**, onboard blinks
 - Left turn → external LED flashes **blue**, onboard blinks
-- Click → external LED flashes **green**, onboard blinks
+- Short click → external LED flashes **green**, onboard blinks
+- **Hold the encoder switch for 1 second → all counters reset**, LED flashes **white**
 
 The cycle counter wraps every 20 rotations; clicks do not advance the cycle counter but increment their own total.
 
-If an OLED is attached, the display shows the current cycle position, last action, and totals.
+If an OLED is attached, the header shows the active debounce method, with the current cycle position, last action, and totals below.
 
 Serial monitor (115200 baud) prints one line per event:
 
@@ -42,6 +43,7 @@ Serial monitor (115200 baud) prints one line per event:
 --> RIGHT - STEP 02
 <-- LEFT  - STEP 03
 (*) CLICK - CLK 01
+>>> counters reset <<<
 ```
 
 ## File layout
@@ -50,31 +52,27 @@ Everything lives in `ec11_debounce_test/`. Each file has one job:
 
 | File | Purpose |
 |---|---|
-| `ec11_debounce_test.ino` | `setup()` + `loop()` — all orchestration, no decoding logic |
+| `ec11_debounce_test.ino` | `setup()` + `loop()` — orchestration, rotation drain, and the short/long-press button handler |
 | `Config.h` | All pin assignments and timing constants |
-| `State.{h,cpp}` | Shared counters and `lastAction`; `recordRotation()` / `recordClick()` |
+| `State.{h,cpp}` | Shared counters and `lastAction`; `recordRotation()` / `recordClick()` / `resetCounts()` |
 | `LedFx.{h,cpp}` | FastLED external strip + onboard LED flash management |
 | `Display.{h,cpp}` | SSD1306 detection, I2C scan, splash, redraw |
 | `SerialOut.{h,cpp}` | Formatted banner and event lines |
-| `Encoder.h` | Common interface (`init`/`deinit`/`getPos`/`poll`) + registry |
-| `Encoder.cpp` | The `ENC_METHODS[]` table and `activeEncoderIdx` |
-| `EncoderPolledBux.cpp` | **Default.** Polled + 2-sample confirm → Buxtronix state machine |
-| `EncoderRawBux.cpp` | ISR-driven Buxtronix with no filter — included as the "bouncy fail" demo |
-| `EncoderQEM.cpp` | Classic 16-entry quadrature event matrix lookup |
+| `Encoder.{h,cpp}` | The polled + confirmed Buxtronix decoder (`encoder_init`/`poll`/`getPos`) |
 
-To try a different debounce method right now, change `activeEncoderIdx` in `Encoder.cpp` (0 = polled Buxtronix, 1 = raw ISR, 2 = QEM) and reflash. A long-press mode cycler that switches at runtime is the next planned feature.
+## How the debounce works
+
+1. **Sample** CLK and DT every 200 µs (5 kHz).
+2. **Confirm** — a new pin reading must hold steady across 2 consecutive samples before it's accepted. This rejects any bounce shorter than ~400 µs.
+3. **Decode** — confirmed transitions drive a full-step Buxtronix state machine that only emits a step on a complete CW/CCW quadrature cycle. Bounce that doesn't complete a cycle harmlessly returns to the start state.
+
+The result is robust against contact bounce at the cost of ~one sample of latency. Tune `SAMPLE_US` and `CONFIRM_COUNT` in `Config.h` to experiment.
+
+The push switch is debounced separately with a 30 ms time-window filter; holding it past `LONG_PRESS_MS` (1000 ms) triggers the counter reset.
 
 > **Note:** the ESP32-C3 has no hardware Pulse Counter (PCNT) peripheral, so the
-> common "let the silicon decode quadrature for free" approach isn't possible on
-> this board — all three methods here decode in software.
-
-## How each method works
-
-- **PolledBux** — samples CLK/DT every 200 µs, requires the reading to be stable across 2 samples before feeding it to a Buxtronix state machine that only emits a step on a complete quadrature cycle. Robust against bounce, ~200 µs latency.
-- **RawBux** — same state machine, but driven by CHANGE interrupts on both pins with no filter. Demonstrates how badly a noisy EC11 wrecks an unfiltered decoder: invalid mid-bounce transitions reset the machine and most steps are lost.
-- **QEM** — pure lookup-table decoder, increments a 4×-resolution counter on each valid quadrature transition. Tiny and easy to read, but counts spurious bounces as steps.
-
-The push switch is debounced separately with a 30 ms time-window filter.
+> "let the silicon decode quadrature for free" approach isn't possible on this
+> board — decoding is done entirely in software.
 
 ## Building
 

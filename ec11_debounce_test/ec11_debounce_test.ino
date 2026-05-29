@@ -7,15 +7,14 @@
 //   I2C OLED (opt.) SDA → GPIO6, SCL → GPIO7, VCC → 3.3V, GND → GND
 //
 // File map:
-//   Config.h            — pin and timing constants
-//   State.cpp           — shared counters + lastAction (recordRotation/Click)
-//   LedFx.cpp           — external WS2812 + onboard LED flash logic
-//   Display.cpp         — SSD1306 OLED detection, splash, redraw
-//   SerialOut.cpp      — formatted Serial banner + event lines
-//   Encoder.cpp         — registry of decoder methods + active-method pointer
-//   EncoderPolledBux.cpp — DEFAULT: polled + confirmed Buxtronix (robust)
-//   EncoderRawBux.cpp    — ISR Buxtronix, no software filter (fails on bouncy EC11)
-//   EncoderQEM.cpp       — raw quadrature event matrix (4 counts/detent)
+//   Config.h     — pin and timing constants
+//   State.cpp    — shared counters + lastAction (recordRotation/Click/reset)
+//   LedFx.cpp    — external WS2812 + onboard LED flash logic
+//   Display.cpp  — SSD1306 OLED detection, splash, redraw
+//   SerialOut.cpp — formatted Serial banner + event lines
+//   Encoder.cpp  — polled + confirmed Buxtronix software debounce decoder
+//
+// Encoder switch: short press = click event, hold for LONG_PRESS_MS = reset.
 //
 // Arduino IDE → Tools → "USB CDC On Boot: Enabled" so Serial reaches the monitor.
 // Libraries  : FastLED, U8g2
@@ -28,8 +27,10 @@
 #include "Encoder.h"
 
 static int32_t       lastPos      = 0;
-static int            lastSwState = HIGH;
-static unsigned long  lastSwChange = 0;
+static int           lastSwState  = HIGH;
+static unsigned long lastSwChange = 0;
+static unsigned long pressStart   = 0;
+static bool          longFired    = false;
 
 void setup() {
   Serial.begin(115200);
@@ -43,18 +44,18 @@ void setup() {
   display_init();
   display_splash();
 
-  activeEnc().init();
-  lastPos = activeEnc().getPos();
+  encoder_init();
+  lastPos = encoder_getPos();
 
   uint8_t bootPins = (digitalRead(CLK_PIN) << 1) | digitalRead(DT_PIN);
-  serialOut_banner(activeEnc().name, bootPins);
+  serialOut_banner(ENCODER_NAME, bootPins);
 }
 
 void loop() {
-  activeEnc().poll();
+  encoder_poll();
 
   // ── Rotation events — drain one detent at a time so each prints ───────────
-  int32_t pos = activeEnc().getPos();
+  int32_t pos = encoder_getPos();
   while (pos != lastPos) {
     bool cw = (pos > lastPos);
     lastPos += cw ? 1 : -1;
@@ -63,16 +64,30 @@ void loop() {
     serialOut_rotation(cw);
   }
 
-  // ── Button — debounced falling edge ───────────────────────────────────────
+  // ── Button — debounced edges; short press = click, long hold = reset ──────
   int swReading = digitalRead(SW_PIN);
   if (swReading != lastSwState && (millis() - lastSwChange) > SW_DEBOUNCE_MS) {
     lastSwChange = millis();
-    if (swReading == LOW) {
+    lastSwState  = swReading;
+    if (swReading == LOW) {            // pressed
+      pressStart = millis();
+      longFired  = false;
+    } else if (!longFired) {           // released without a long-press → click
       recordClick();
       ledFx_flash(CRGB::Green);
       serialOut_click();
     }
-    lastSwState = swReading;
+  }
+
+  // Held past the threshold: reset counters and encoder position once.
+  if (lastSwState == LOW && !longFired &&
+      (millis() - pressStart) >= LONG_PRESS_MS) {
+    longFired = true;
+    encoder_init();
+    lastPos = encoder_getPos();
+    resetCounts();
+    ledFx_flash(CRGB::White);
+    serialOut_reset();
   }
 
   ledFx_tick();

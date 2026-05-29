@@ -1,6 +1,7 @@
 #include "Display.h"
 #include "Config.h"
 #include "State.h"
+#include "Encoder.h"
 #include <Wire.h>
 #include <U8g2lib.h>
 
@@ -79,9 +80,9 @@ void display_update() {
   if (!present) return;
   oled.clearBuffer();
 
-  // Header
+  // Header — the active debounce method
   oled.setFont(u8g2_font_5x8_tr);
-  oled.drawStr(2, 8, "EC11 DEBOUNCE");
+  oled.drawStr(2, 8, ENCODER_NAME);
   oled.drawHLine(2, 10, 124);
 
   // Cycle counter "NN / 20", centered

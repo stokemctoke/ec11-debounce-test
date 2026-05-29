@@ -18,6 +18,7 @@
 #define DT_PIN         1
 #define SW_PIN         3
 #define SW_DEBOUNCE_MS 30
+#define LONG_PRESS_MS  1000   // hold the switch this long to reset all counters
 
 // ── Encoder sampling (polled methods only) ────────────────────────────────────
 #define SAMPLE_US     200    // 5 kHz sample rate

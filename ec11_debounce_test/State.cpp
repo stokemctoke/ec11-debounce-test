@@ -24,3 +24,12 @@ void recordClick() {
   lastAction = ACT_CLICK;
   displayDirty = true;
 }
+
+void resetCounts() {
+  cycleStep    = 0;
+  cwCount      = 0;
+  ccwCount     = 0;
+  clickCount   = 0;
+  lastAction   = ACT_NONE;
+  displayDirty = true;
+}

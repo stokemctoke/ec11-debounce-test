@@ -5,3 +5,4 @@
 void serialOut_banner(const char* methodName, uint8_t pinsAtBoot);
 void serialOut_rotation(bool cw);
 void serialOut_click();
+void serialOut_reset();

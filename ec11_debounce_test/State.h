@@ -15,3 +15,4 @@ extern bool       displayDirty; // set on any event, cleared after display redra
 // Mutators — call exactly one per event in the main loop.
 void recordRotation(bool cw);
 void recordClick();
+void resetCounts();   // zero every counter (long-press reset)
