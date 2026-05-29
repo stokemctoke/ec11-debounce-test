@@ -68,13 +68,13 @@ static void IRAM_ATTR onSample() {
     // Valid quadrature changes exactly one bit at a time. If both flipped
     // between confirmed samples, an intermediate phase was too brief to
     // catch — we skipped (at least) one step.
-    if ((candidate ^ lastStable) == 0b11) missed++;
+    if ((candidate ^ lastStable) == 0b11) missed = missed + 1;
 
     lastStable = candidate;
     encState   = TTABLE[encState & 0x0F][candidate];
     uint8_t dir = encState & 0xF0;
-    if      (dir == DIR_CW)  pos++;
-    else if (dir == DIR_CCW) pos--;
+    if      (dir == DIR_CW)  pos = pos + 1;
+    else if (dir == DIR_CCW) pos = pos - 1;
   }
 }
 

@@ -84,8 +84,8 @@ static void IRAM_ATTR encSampleISR() {
     lastStable = candidate;
     encState   = TTABLE[encState & 0x0F][candidate];
     uint8_t dir = encState & 0xF0;
-    if      (dir == DIR_CW)  encPos++;
-    else if (dir == DIR_CCW) encPos--;
+    if      (dir == DIR_CW)  encPos = encPos + 1;
+    else if (dir == DIR_CCW) encPos = encPos - 1;
   }
 }
 
